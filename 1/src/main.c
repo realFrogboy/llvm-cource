@@ -2,7 +2,7 @@
 
 int main() {
   simInit();
-  draw();
-  simFin();
+  app();
+  simKill();
   return 0;
 }
