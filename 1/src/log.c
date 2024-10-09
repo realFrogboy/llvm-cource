@@ -31,6 +31,6 @@ void brLogger(char *funcName, char *opName, int cond, long int valID) {
   printf(" {%ld}\n", valID);
 }
 
-void unaryLogger(char *funcName, char *opName, long int valID) {
-  printf("[LOG] In function '%s': %s {%ld}\n", funcName, opName, valID);
+void oneChainLogger(char *opName) {
+  printf("%s\n", opName);
 }

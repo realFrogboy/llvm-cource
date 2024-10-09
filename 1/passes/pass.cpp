@@ -8,7 +8,8 @@ using namespace llvm;
 static bool isFuncLogger(StringRef name) {
   return name == "binOptLogger" || name == "callLogger" ||
          name == "funcStartLogger" || name == "funcEndLogger" ||
-         name == "cmpLogger" || name == "brLogger" || name == "unaryLogger";
+         name == "cmpLogger" || name == "brLogger" || name == "unaryLogger" ||
+         name == "oneChainLogger";
 }
 
 static FunctionCallee getFuncStartLoggerCallee(Module &M) {
@@ -96,18 +97,16 @@ static FunctionCallee getBrLoggerCallee(Module &M) {
   return M.getOrInsertFunction("brLogger", brLogFuncType);
 }
 
-static FunctionCallee getUnaryLoggerCallee(Module &M) {
+static FunctionCallee getOneChainLoggerCallee(Module &M) {
   LLVMContext &Ctx = M.getContext();
   IRBuilder<> builder(Ctx);
 
   Type *retType = Type::getVoidTy(Ctx);
-  ArrayRef<Type *> unaryParamTypes = {builder.getInt8Ty()->getPointerTo(),
-                                      builder.getInt8Ty()->getPointerTo(),
-                                      Type::getInt64Ty(Ctx)};
-  FunctionType *unaryLogFuncType =
-      FunctionType::get(retType, unaryParamTypes, false);
+  ArrayRef<Type *> oneChainParamTypes = {builder.getInt8Ty()->getPointerTo()};
+  FunctionType *oneChainLogFuncType =
+      FunctionType::get(retType, oneChainParamTypes, false);
 
-  return M.getOrInsertFunction("unaryLogger", unaryLogFuncType);
+  return M.getOrInsertFunction("oneChainLogger", oneChainLogFuncType);
 }
 
 static void insertFuncStartLoggerCall(Module &M, Function &F) {
@@ -219,21 +218,21 @@ static void insertBrLoggerCall(Module &M, Function &F, BranchInst *Br) {
   builder.CreateCall(brLogFunc, args);
 }
 
-static void insertUnaryLoggerCall(Module &M, Function &F, Instruction *UI) {
+static void insertOneChainLoggerCall(Module &M, Function &F, Instruction *UI, bool NextInst = true) {
   assert(UI);
 
   LLVMContext &Ctx = F.getContext();
   IRBuilder<> builder(Ctx);
 
-  builder.SetInsertPoint(UI->getNextNode());
+  if (NextInst)
+    builder.SetInsertPoint(UI->getNextNode());
+  else 
+    builder.SetInsertPoint(UI);
 
-  FunctionCallee unaryLogFunc = getUnaryLoggerCallee(M);
-  Value *valueAddr =
-      ConstantInt::get(builder.getInt64Ty(), reinterpret_cast<uint64_t>(UI));
-  Value *funcName = builder.CreateGlobalStringPtr(F.getName());
+  FunctionCallee OneChainLogFunc = getOneChainLoggerCallee(M);
   Value *opName = builder.CreateGlobalStringPtr(UI->getOpcodeName());
-  Value *args[] = {funcName, opName, valueAddr};
-  builder.CreateCall(unaryLogFunc, args);
+  Value *args[] = {opName};
+  builder.CreateCall(OneChainLogFunc, args);
 }
 
 struct TracePass : public PassInfoMixin<TracePass> {
@@ -243,32 +242,28 @@ struct TracePass : public PassInfoMixin<TracePass> {
         continue;
       }
 
-      insertFuncStartLoggerCall(M, F);
-
       for (auto &I : instructions(F)) {
-        if (auto *Select = dyn_cast<SelectInst>(&I))
-          insertUnaryLoggerCall(M, F, Select);
-
-        if (auto *GetElemPtr = dyn_cast<GetElementPtrInst>(&I))
-          insertUnaryLoggerCall(M, F, GetElemPtr);
-
-        if (auto *UnOp = dyn_cast<UnaryInstruction>(&I))
-          insertUnaryLoggerCall(M, F, UnOp);
-
         if (auto *Br = dyn_cast<BranchInst>(&I))
-          insertBrLoggerCall(M, F, Br);
-
-        if (auto *Cmp = dyn_cast<CmpInst>(&I))
-          insertCmpLoggerCall(M, F, Cmp);
-
+          insertOneChainLoggerCall(M, F, Br, false);
         if (auto *CI = dyn_cast<CallInst>(&I))
-          insertCallLoggerCall(M, F, CI);
-
+          insertOneChainLoggerCall(M, F, CI, false);
         if (auto *Ret = dyn_cast<ReturnInst>(&I))
-          insertFuncEndLoggerCall(M, F, Ret);
-
+          insertOneChainLoggerCall(M, F, Ret, false);
+        
+        if (auto *Select = dyn_cast<SelectInst>(&I))
+          insertOneChainLoggerCall(M, F, Select);
+        if (auto *GetElemPtr = dyn_cast<GetElementPtrInst>(&I))
+          insertOneChainLoggerCall(M, F, GetElemPtr);
+        if (auto *UnOp = dyn_cast<UnaryInstruction>(&I))
+          insertOneChainLoggerCall(M, F, UnOp);
+        if (auto *Cmp = dyn_cast<CmpInst>(&I))
+          insertOneChainLoggerCall(M, F, Cmp);
         if (auto *Op = dyn_cast<BinaryOperator>(&I))
-          insertBinOptLoggerCall(M, F, Op);
+          insertOneChainLoggerCall(M, F, Op);
+        if (auto *Store = dyn_cast<StoreInst>(&I))
+          insertOneChainLoggerCall(M, F, Store);
+        if (auto *InsertValue = dyn_cast<InsertValueInst>(&I))
+          insertOneChainLoggerCall(M, F, InsertValue);
       }
     }
     return PreservedAnalyses::none();
