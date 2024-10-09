@@ -1,24 +1,31 @@
-project('circles', 'c', version : '1.0')
+project('circles', 'c', 'cpp', version: '1.0')
+
+fs = import('fs')
+
+compiler = meson.get_compiler('c')
+if compiler.get_id() != 'clang'
+    error('clang required')
+endif
+compiler = meson.get_compiler('cpp')
+if compiler.get_id() != 'clang'
+    error('clang++ required')
+endif
 
 project_sources = []
-project_header_files = []
+project_headers = []
 
-sdl2_dep = dependency('sdl2')
-
-inc = [include_directories('include')]
-
-subdir('src')
+subdir('passes')
 subdir('include')
+subdir('src')
 
-exe = executable(
-      'circles', 
-      project_sources, 
-      include_directories : inc,
-      dependencies: sdl2_dep)
-
-configure_file (input : '.clang-format',
-               	output : '.clang-format',
-	       				copy: true)
-run_target('format',
-  command : ['clang-format','-i','-style=file',project_sources, project_header_files])
-
+configure_file(input: '.clang-format', output: '.clang-format', copy: true)
+run_target(
+    'format',
+    command: [
+        'clang-format',
+        '-i',
+        '-style=file',
+        project_sources,
+        project_headers,
+    ],
+)

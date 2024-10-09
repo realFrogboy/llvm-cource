@@ -1,1 +1,2 @@
-project_header_files += files('sim.h')
+circles_includes = include_directories('.')
+project_headers += files('sim.h')
