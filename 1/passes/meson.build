@@ -1,4 +1,4 @@
-llvm_pass_sources = files('pass.cpp')
+llvm_pass_sources = files('TracePass.cpp')
 
 llvm_includedir = run_command(
     find_program('llvm-config'),
