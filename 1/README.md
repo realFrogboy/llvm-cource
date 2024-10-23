@@ -18,8 +18,8 @@ You can analys the obtained trace with `parser.py` script.
 
 Build a graphic application and a libPass.so first:
 ```console
-$ meson build
-$ meson compile -C build
+$ CC=clang CXX=clang++ meson build
+$ CC=clang CXX=clang++ meson compile -C build
 ```
 
 Build your application with `-fpass-plugin=` flag:
@@ -44,3 +44,17 @@ I've got the following charts:
 Window size = 1                                                                     |  Window size = 3                                                                     |  Window size = 5
 :----------------------------------------------------------------------------------:|:------------------------------------------------------------------------------------:|:----------------------------------------------------------------------------------:
 ![](https://github.com/realFrogboy/llvm-cource/blob/master/1/samples/window_1.png)  |  ![](https://github.com/realFrogboy/llvm-cource/blob/master/1/samples/window_3.png)  |  ![](https://github.com/realFrogboy/llvm-cource/blob/master/1/samples/window_5.png)
+
+# Task 3: Implement IR Generator
+
+## Build
+
+```console
+$ CC=clang CXX=clang++ meson build
+$ CC=clang CXX=clang++ meson compile -C build
+```
+
+```console
+$ ./build/src/ir_creator
+```
+
